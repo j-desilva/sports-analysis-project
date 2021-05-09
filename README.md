@@ -1,2 +1,2 @@
 # sports-analysis-project
-NBA Moneyball reproducible data analysis
+NBA Analysis - discovering undervalued talent

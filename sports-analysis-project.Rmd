@@ -1,0 +1,1063 @@
+---
+title: "Sports Analysis Project"
+author: "Jessica De Silva"
+date: "2021-03-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE)
+```
+
+## Section 1. Introduction
+
+In the game of basketball, to win, you need to score more points than you allow. To score points, players need to get the ball through their designated basket before the shot clock runs out, with the other team allowed to steal, block, or use other defensive strategies within the rules. The shot clock lasts 24 seconds and was invented to speed up the pace of the game. If teams have not used their time wisely and the shot clock runs down without them taking a shot, its a turnover. The other option to score points is off a foul (analogous to penalty shots in other team sports), where the player that was fouled gets a free shot at the basket from the free throw line without defenders^1^. Each basket is not worth the same number of points. For example, a successful free throw scores 1 point, shots made from inside the arc score 2 points, and shots made from outside the arc score 3 points. The harder the shot to make, the more points designated. Each team has five players on the court at any one time and unlike the sport of netball, each position can travel anywhere on the court. 
+
+![](images/image_01.png)  
+Image_01. Key Features of a Basketball Court^2^.
+
+As basketball is a game of points scored versus points allowed, we could focus our attention to the defensive aspect and/or the offensive aspect of performance. To not get lost in too much data, this analysis will focus on the offensive aspect of the game and how to find players that may be undervalued based on certain offensive metrics. 
+
+Several aspects contribute to a successful basket, or the opportunity to get a successful basket. Specifically, field goal attempts, free throws, assists, and offensive rebounds. These metrics are by far not the only contributors to a successful basket but will be the focus of this analysis. Historically, basketball was focused more on the mid-short-range shots and so individuals with successful 2-point percentage rates were highly valued. With time, and the evolution of the game (rule changes), the more highly valued players are now the players that are successful 3-point shooters, as well as being overall high-level players^3^. The evolution of the game has stuck on valuing players with a successful shooting percentage, but what about the players that go under the radar and create opportunities for their team via offensive rebounds and assists?
+
+The aim of this analysis is two-fold. First, we will aim to explore and model NBA team data to discover whether assists and offensive rebounds play a large role in offensive rating. Second, we will examine whether some players have been undervalued based on our first analysis.         
+
+The five players on each team have different roles that contribute to their team scoring baskets and preventing the other team from scoring baskets. These five positions include a point guard (PG), shooting guard (SG), small forward (SF), power forward (PF), and center (C). The PG typically leads their team in assists and are able to create shots for themselves and their teammates with their good ball handling and driving skills. The SG typically excels in shots from long-mid-range including 3-pointers. Besides being able to shoot, the SG is also proficient in moving without the ball to create open opportunities for their teammates to pass them the ball. The SF is considered the most versatile of the main five playing positions. They need to be able to ball handle, shoot, and post-up. In particular a SF scores many of their points from the foul line as one of their roles is to draw fouls. The PF plays near the post and is often the most dependent scorer. These athletes also need to be able to guard the larger players in defense near the basket. Finally, the C position has been considered one of the most important players on the court. They need to be able to get rebounds, contest shots, and assist in their teammates attack by screening the opposing players. Overall these descriptions are a snapshot into the different playing positions. A more detailed insight can be found [here](https://en.wikipedia.org/wiki/Basketball_positions).  
+
+The scenario for this reproducible project is about finding the best player for each of these five playing positions within your budget. Specifically, you are a data analyst with the Chicago Bulls and the previous season was the 2018-19 season, where your team placed 27th out of 30. Now ranking 26th out of 30, your job is to find the best 5 starting players for next season (2019-20) with a budget of $118 million. The whole budget shouldn't be spent as the rest of the roster would need to be filled, but for this analysis we will only focus on choosing the starting 5.  
+
+Statistical sports analysis has grown rapidly in recent years. Teams and players increasingly utilize performance analysis data to drive decision making around game strategy/trading/drafting and training. With the difference of winning and losing being such a small margin in competitive sports, it becomes important for teams to find an extra edge. 
+
+Therefore, the following analysis provides insight into potential analytics of NBA teams to find the best 'bang for buck' player in each position from the 2018-19 season. We will see how linear regression can aid in the development of a strategy to build an NBA team on a limited budget. The first part of our analysis will aim to discover whether assists and offensive rebounds play a large role in offensive rating, and the second will aim to see if any players were undervalued based on what our first analysis predicts.  
+
+# Part 1.
+
+## Section 2. Reading and cleaning the raw data
+
+#### Step 1. Load the required packages
+
+You will need to run `install.packages("tidyverse")`, `install.packages("plotly")` , `install.packages("broom")`and `install.packages("ggrepel")` if they are not already installed, then run the following code 
+
+```{r}
+# install packages if necessary then load the following libraries
+library(tidyverse)
+library(plotly)
+library(broom)
+library(ggrepel)
+```
+
+The data we will be using for this analysis can be found in the `data/raw` file within the working directory, and was sourced from [basketball-reference.com](https://www.basketball-reference.com/). A full description of the data sets used and the variables in each can be found [here](./docs/descriptions.md).
+
+#### Step 2. Read in the raw data and use the assign `<-` function to assign these data sets to new objects
+
+```{r}
+# read in the raw data and assign to new objects
+t_stats1 <- read_csv("data/raw/2018-19_nba_team-statistics_1.csv")
+t_stats2 <- read_csv("data/raw/2018-19_nba_team-statistics_2.csv")
+p_stats <- read_csv("data/raw/2018-19_nba_player-statistics.csv")
+salaries <- read_csv("data/raw/2018-19_nba_player-salaries.csv")
+payroll <- read_csv("data/raw/2019-20_nba_team-payroll.csv")
+```
+
+Our new objects include data sets for team statistics `t_stats1` `t_stats2`, players statistics `p_stats`, player salaries `salaries` and the team payroll `payroll`.
+
+Let's take a look at both of the team statistics data sets in more detail. To do this we can use the right_join() function to combine these data sets, matching by the variable `Team`.   
+
+#### Step 3. Join the `t_stats1` and `t_stats2` data sets using the `full_join()` function and save into a new object called `joined`
+
+```{r}
+# join all team statistics together by Team
+joined <- full_join(t_stats1, t_stats2, by = "Team")
+```
+
+#### Step 4. Check the structure `str()` first 6 rows `head()` and last 6 rows `tail()` of the new object
+
+```{r}
+# check the structure of the joined data
+str(joined)
+```
+
+```{r}
+# check the first 6 rows of the joined data
+head(joined)
+```
+
+```{r}
+# check the last 6 rows of the joined data 
+tail(joined)
+```
+
+Upon viewing the `joined` data frame in more detail, we can see that some of the variable names are not named appropriately for analytic purposes in R. Specifically, variable names that contain a symbol or start with a number should be renamed.
+
+#### Step 5. Rename the variables that contain any symbols or begin with a number using the `rename` function
+
+```{r}
+# rename inefficient variables for easier analysis in R
+joined <- rename(joined,
+                 "P3Ar" = "3PAr",
+                 "TSp" = "TS%",
+                 "eFGp" = "eFG%",
+                 "TOVp" = "TOV%",
+                 "ORBp" = "ORB%",
+                 "FT_per_FGA" = "FT/FGA",
+                 "DRBp" = "DRB%",
+                 "FGp" = "FG%",
+                 "P3" = "3P",
+                 "P3A" = "3PA",
+                 "P3p" = "3P%",
+                 "P2" = "2P",
+                 "P2A" = "2PA",
+                 "P2p" = "2P%",
+                 "FTp" = "FT%")
+```
+
+So far we have read in and cleaned the data. The next step is to explore the data in more detail.
+
+## Section 3. Exploratory analysis
+
+As part of our exploratory analysis, we will first check the data for any missing values to make sure our data set is complete.  
+
+#### Step 6. Check the number of missing values using the `is.na()` function
+
+```{r}
+# check for missing values
+sum(is.na(joined))
+```
+
+As we are an analyst working for the Chicago Bulls, and know that points scored versus points allowed is the difference between winning or losing, we might first want to explore the relationship between point differential and wins, and how that relates to the Chicago Bulls team. 
+
+#### Step 7. Check the relationship between Net Rating `NRtg` and Wins `W`
+
+```{r}
+# plot NRtg against W using a scatterplot
+ggplot(data = joined, aes(x = NRtg, y = W)) +
+  geom_point()
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_01.png", width = 4, height = 3)
+```
+
+Upon viewing quite a strong positive relationship, we can see that as a teams net rating increases, so does their amount of wins. Therefore, we might want to see where Chicago Bulls fit overall on point differential.
+
+#### Step 8. Check to see where Chicago Bulls fit against other teams for net rating `NRtg`
+
+```{r}
+# plot NRtg from worst to best using a bar graph
+ggplot(data = joined, aes(x = reorder(Team, NRtg), y = NRtg)) +
+  geom_bar(stat = "identity", fill = "dodgerblue") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.8))
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_02.png", width = 4, height = 3)
+```
+
+As we can see, the Chicago Bulls have quite a low net rating (-8.4). This suggests that they score less points than they allow per 100 possessions. Thus our analysis could go both ways of either looking at how we could decrease our points allowed, or increase our points scored. This analysis will focus only on the latter so we don't get lost in too much data.
+
+And if we revisit our original question, we are trying to find whether assists and offensive rebounds play a large role in offensive rating, therefore we will focus more on offensive rating rather than defensive rating.  
+
+But before we dive too far into this question, many of the analytic methods we use have the assumption that our continuous variables are normally distributed. So lets first take a look at the distribution of our offensive rating `ORtg` variable, as we are specifically interested in points scored.
+
+
+#### Step 9. Check if offensive rating `ORtg` is normally distributed
+
+```{r}
+# plot distribution of ORtg using a histogram
+joined %>%
+  ggplot(aes(x = ORtg)) +
+  geom_histogram(binwidth = 1, fill = "dodgerblue", colour = "black")
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_03.png", width = 4, height = 3)
+```
+
+Now we can see that the data is relatively normally distributed we might look at how each type of shot relates to our `ORtg`.
+
+Here, we will explore how free throws `FT`, two pointers `P2`, and three pointers `P3` relate to the offensive rating. 
+
+As each team has played the same number of games, we will not need to normalize the data to account for differences in games played.
+
+#### Step 10. View the relationship between ORtg and FT, P2 and P3
+
+```{r}
+# plot FT against ORtg using a scatterplot
+ggplot(data = joined, aes(x = FT, y = ORtg)) +
+  geom_point()
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_04.png", width = 4, height = 3)
+```
+
+```{r}
+# plot P2 against ORtg using a scatterplot
+ggplot(data = joined, aes(x = P2, y = ORtg)) +
+  geom_point()
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_05.png", width = 4, height = 3)
+```
+
+```{r}
+# plot P3 against ORtg using a scatterplot
+ggplot(data = joined, aes(x = P3, y = ORtg)) +
+  geom_point()
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_06.png", width = 4, height = 3)
+```
+
+From these plots we can view a couple of interesting details. The first being that, three-pointers seem to have a stronger relationship to the offensive rating than the other variables. Second, there seems to be one team as a significant outlier to the other teams, particularly for 2-point and 3-point shots, which we will explore further. Finally, that the overall number of attempts is not accounted for by these plots. To view how the number of attempts relates to these variables we might produce the following plots.    
+
+#### Step 11. Adjust the plots to account for attempts taken
+
+```{r}
+# plot FT against ORtg and account for FTA, save into a new object
+FTA_plot <- ggplot(data = joined, aes(x = FT, y = ORtg, label = Team)) +
+  geom_point(aes(colour = FTA, size = FTA)) +
+  scale_colour_gradient(low = "red", high = "green")
+```
+
+```{r}
+# view the new plot in an interactive way
+ggplotly(FTA_plot)
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_07.png", width = 4, height = 3)
+```
+
+From this plot we can see that the teams with the highest number of successful free throws also had the highest number of attempts. However, higher attempts and successful free throws does not necessarily influence a higher offensive rating. 
+
+
+```{r}
+# plot P2 against ORtg and account for P2A, save into a new object
+P2A_plot <- ggplot(data = joined, aes(x = P2, y = ORtg, label = Team)) +
+  geom_point(aes(colour = P2A, size = P2A)) +
+  scale_colour_gradient(low = "red", high = "green")
+```
+
+```{r}
+# view the new plot in an interactive way
+ggplotly(P2A_plot)
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_08.png", width = 4, height = 3)
+```
+
+From this plot, we can see that the Chicago Bulls, although taking a high number of two-point attempts, and making a significant number of those, still have the second lowest offensive rating. Also, interestingly, we can look at the Houston Rockets, who have by far the smallest amount of successful two pointers and two point attempts with still the second highest offensive rating.
+
+
+```{r}
+# plot P3 against ORtg and account for P3A, save into a new object
+P3A_plot <- ggplot(data = joined, aes(x = P3, y = ORtg, label = Team)) +
+  geom_point(aes(colour = P3A, size = P3A)) +
+  scale_colour_gradient(low = "red", high = "green")
+```
+
+```{r}
+# view the new plot in an interactive way
+ggplotly(P3A_plot)
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_09.png", width = 4, height = 3)
+```
+
+From this plot, we see a stronger relationship between three-pointers attempted and made. Specifically, we can see that the Houston Rockets have a far greater number of three-pointers attempted and made than any other team. Much the opposite of the previous plot. Interestingly, we can see that the Chicago Bulls have the lowest number of three-pointers made, with also very low attempts. 
+
+From this scenario, we might say that a team should focus more on attempting three-point shots than two-point shots for a better offensive rating. But what might contribute to the number of opportunities a team has to score three-pointers? Assists is one way to increase attempts at three-pointers. 
+
+The next thing we could do is plot the same graphs to account for assists and view the relationship that this portrays.
+
+#### Step 12. Adjust the plots to account for assists
+
+```{r}
+# plot FT against ORtg and account for AST, save into a new object
+FT_AST_plot <- ggplot(data = joined, aes(x = FT, y = ORtg, label = Team)) +
+  geom_point(aes(colour = AST, size = AST)) +
+  scale_colour_gradient(low = "red", high = "green")
+```
+
+```{r}
+# view the new plot in an interactive way
+ggplotly(FT_AST_plot)
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_10.png", width = 4, height = 3)
+```
+
+It makes sense that there is no pattern here due to free throws not having an assist component. Assists can only occur on field goal opportunities. 
+
+
+```{r}
+# plot P2 against ORtg and account for AST, save into a new object
+P2_AST_plot <- ggplot(data = joined, aes(x = P2, y = ORtg, label = Team)) +
+  geom_point(aes(colour = AST, size = AST)) +
+  scale_colour_gradient(low = "red", high = "green")
+```
+
+```{r}
+# view the new plot in an interactive way
+ggplotly(P2_AST_plot)
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_11.png", width = 4, height = 3)
+```
+
+From this plot we can see that the Golden State Warriors have the highest assists of any team and are sitting somewhere just above the average for two-point shots made. Interestingly, the Houston Rockets have one of the lowest number of assists. Lets explore this plot further for three-pointers...
+
+```{r}
+# plot P3 against ORtg and account for AST, save into a new object
+P3_AST_plot <- ggplot(data = joined, aes(x = P3, y = ORtg, label = Team)) +
+  geom_point(aes(colour = AST, size = AST)) +
+  scale_colour_gradient(low = "red", high = "green")
+```
+
+```{r}
+# view the new plot in an interactive way
+ggplotly(P3_AST_plot)
+```
+
+
+```{r echo=FALSE}
+ggsave("figs/fig_12.png", width = 4, height = 3)
+```
+
+This plot shows us that the Golden State Warriors are one of the highest three-point scoring teams and have the highest number of assists. But this does not mean that assists cause more three-pointers. As we can see, the Houston Rockets have the highest number of successful three-pointers with one of the lowest numbers of assists. This result from the Houston Rockets could mean that one player in particular creates a lot of opportunities for himself to get three point shots.
+
+Overall, from these plots, we can see that teams with a higher offensive rating tend to either have a higher number of attempted shots, or a higher number of assists. The Chicago Bulls have both a low number of assists and three-point attempts, which doesn't place them in good contention for a positive offensive rating.
+
+Ultimately, a higher number of all three types of shots is beneficial to the offensive rating, but in particular three-pointers as they are worth the most. A metric that takes into account all types of shots and their accuracy is the `TSp`.
+
+Let's discover more about `TSp` and its relationship to the `ORtg`.
+
+#### Step 13. Create a new variable that labels teams as either above or below average based on `TSp` and create a box plot to view this relationship
+
+```{r}
+# label teams as either "above" or "below" average based on TSp
+joined <- joined %>%
+  mutate(TSp_avg = if_else(TSp > mean(TSp), "above_avg", "below_avg"))
+```
+
+```{r}
+# view TSp_avg in a box plot
+ggplot(data = joined, aes(x = TSp_avg, y = ORtg)) +
+  geom_boxplot(aes(fill = TSp_avg))
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_13.png", width = 4, height = 3)
+```
+
+This plot tells us that teams that have a higher TSp also tend to have a higher offensive rating.
+
+We could also view the distribution of ORtg for each of the levels in the TSp_avg variable
+
+```{r}
+# use a facet wrap to view the distribution of each level of the TSp_avg variable
+ggplot(data = joined, aes(x = ORtg, fill = TSp_avg)) +
+  geom_histogram(colour = "black", binwidth = 2) +
+  facet_wrap(~TSp_avg, nrow = 2) +
+  theme(legend.position = "none")
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_14.png", width = 4, height = 3)
+```
+
+Finally, we could create a plot which shows the relationship between `TSp` and `ORtg`
+
+```{r}
+# view the relationship between TSp and ORtg using a scatter plot
+ggplot(data = joined, aes(x = TSp, y = ORtg)) +
+  geom_point(colour = "dodgerblue", size = 2) +
+  geom_smooth(method = lm, colour = "magenta")
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_15.png", width = 4, height = 3)
+```
+
+We can see from this plot that `TSp` relates well to `ORtg`. ORtg has a direct influence on NRtg, which we established from the start is highly correlated to wins. 
+
+As we stated, we need to improve a teams NRtg by either allowing less points scored or by scoring more points. As we investigated that the Bulls have one of the worst ORtg in the season and very low three-point percentage, it makes sense that we try to improve their offensive capacity. 
+
+Now we have read, cleaned, and explored the data, we need to model our data to assure it meets the assumptions of multiple regression analysis.
+
+## Section 4. Data modelling and results
+
+Here, we will model the data to investigate any points that might stand out against the others. 
+
+As the number of wins is a direct measure of success, we will model specific variables against this metric.
+
+First, we need to normalize wins, true shooting percentage, assists, and offensive rebounds.
+
+#### Step 14. Create new variables to convert `W` to a percentage, `TSp` to a number out of 100 instead of 1, and the `AST` and `ORB` to a per-game metric.  
+
+```{r}
+# normalize W, TSp, AST and ORB
+joined <- joined %>%
+  mutate(win_percentage = W / G * 100,
+         TSp_norm = TSp * 100,
+         AST_per_game = AST / G,
+         ORB_per_game = ORB / G)
+```
+
+
+```{r echo=FALSE}
+write.csv(x = joined, file = "data/processed/joined.csv")
+```
+
+Before diving into the modeling, we can first look at `TSp` and its relationship to `win_percentage`.
+
+#### Step 15. Create a scatterplot to view the correlation between `TSp` and `win_percentage` 
+
+```{r}
+# plot the relationship between normalized TSp and W
+ggplot(data = joined, aes(x = TSp_norm, y = win_percentage)) +
+  geom_point(colour = "dodgerblue") +
+  geom_smooth(method = lm, colour = "magenta", se = FALSE) +
+  geom_hline(yintercept = 50, colour = "black", linetype = "dashed") +  # add a horizontal dashed line halfway
+  ylim(0, 100)  # set the y axis limits between 0 and 100
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_16.png", width = 4, height = 3)
+```
+
+We might say that the strength of this relationship looks moderately strong. But it is also necessary to determine the correlation coefficient to clarify further. 
+
+#### Step 16. Determine the correlation coefficient 
+
+```{r}
+# check the correlation coefficient of TSp_norm and win_percentage 
+with(joined, cor(x = TSp_norm, y = win_percentage))
+```
+
+The closer the correlation coefficient is to 1 or -1, the stronger the relationship. Here, as we suspected, the correlation is moderately strong. What this tells us is that generally, the stronger the team is in shooting accuracy, the more wins they will have. 
+
+Next, we will run a multiple regression to see the outcome `AST` and `ORB` have on `win_percentage`
+
+#### Step 17. Conduct a multiple regression
+
+```{r}
+# create a multiple regression and label it `fit` (to used for further analysis)
+fit <- lm(win_percentage ~ TSp_norm + AST_per_game + ORB_per_game, data = joined)
+tidy(fit, conf.int = TRUE)
+```
+
+In this scenario our y-intercept doesn't make a lot of practical sense because you cant have a minus win_percentage. However, our slope coefficient tells us that for every 1% increase in true shooting percentage, teams will increase their win percentage by 7.97%.
+
+Our slope coefficient also tells us that teams that get 1 more AST_per_game increase their win percentage by .2% 
+
+Finally, our slope coefficient tells us that teams that get 1 more ORB_per_game increase their win percentage by 4.4%
+
+These are interesting results because good shooters are expensive, so another way to increase our offensive capacity might be to invest in a post player with high offensive rebound statistics, or a player that can create more assists for three-pointers.
+
+It becomes important to investigate this model further to ensure its integrity. 
+
+First we can look at a summary of the model and specifically, the r-squared value, which tells us how much variance our model accounts for. 
+
+#### Step 18. View the summary() statistics for our model
+
+```{r}
+# view a summary of our `fit` model
+summary(fit)
+```
+
+Our R-squared value tells us that 65.8% of the variance in `win_percentage` is decided by `TSp`, `AST` and `ORB`. This makes sense due to TSp having a moderately strong correlation to win percentage as modelled previously. 
+
+Next we can check if our multiple regression has independence. 
+
+
+#### Step 19. Determine if our multiple regression has independence via the Durbin Watson Test 
+
+```{r}
+# check for independence of our `fit` model. Use `install.packages(car)` if this is not already installed, then run the following code
+car::durbinWatsonTest(fit)
+```
+
+A D-W Statistic closer to 2 is desirable. In this scenario, we could say that we have independence.  
+
+We also need to check our model for outliers.
+
+#### Step 20. Check for outliers in the model using the `rstandard()` function and create a plot to visualise these outliers 
+
+```{r}
+# check for outliers in our `fit` model
+std_res <- rstandard(fit)
+points <- 1:length(std_res)
+```
+
+```{r}
+# view outliers in a scatterplot
+ggplot(data = NULL, aes(x = points, y = std_res)) +
+  geom_point() +
+  geom_hline(yintercept = c(-3, 3), colour = "red", linetype = "dashed")
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_17.png", width = 4, height = 3)
+```
+
+Usually a cutoff of -3 and 3 standard deviations is considered acceptable for finding outliers. There does not appear to be any outliers in our model.
+
+Next we need to check if there are any high leverage points in the model.
+
+#### Step 21. Determine if there are any high leverage points that have the potential to influence the model using the `hatvalues()` function and create a plot to visualise
+
+```{r}
+# check for high leverage points in our model
+hats <- hatvalues(fit) 
+```
+
+```{r}
+# view points of possible high leverage in a scatter plot
+ggplot(data = NULL, aes(x = points, y = hats)) +
+  geom_point()
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_18.png", width = 4, height = 3)
+```
+
+There are no hat values greater than 1, however we might investigate the values above 0.25 as they seem to stick out above the rest
+
+#### Step 22. Investigate the leverage points above 0.25 using the `if_else()` function and then visualise these values with labels on the existing plot
+
+```{r}
+# create labels for points greater than 0.25
+hat_labels <- if_else(hats > 0.25, paste(points), "")
+```
+
+```{r}
+# view hat_labels on the same scatter plot as in Step 21.
+ggplot(data = NULL, aes(x = points, y = hats)) +
+  geom_point() +
+  geom_text_repel(aes(label = hat_labels))
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_19.png", width = 4, height = 3)
+```
+
+We also need to determine if any points could be of high influence
+
+#### Step 23. Determine if any of the points could be considered high influence using the `cooks.distance()` function and visualise these points
+
+```{r}
+# check for points of high influence
+cook <- cooks.distance(fit)
+```
+
+```{r}
+# view `cook` in a scatter plot
+ggplot(data = NULL, aes(x = points, y = cook)) +
+  geom_point()
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_20.png", width = 4, height = 3)
+```
+
+We might investigate the points above 0.075 as they seem to stick out above the rest
+
+#### Step 24. Investigate the potential high influence points above 0.075 using the `if_else()` function and then visualise these values with labels on the existing plot
+
+```{r}
+# label potential high influence points above 0.075
+cook_labels <- if_else(cook > 0.075, paste(points), "")
+```
+
+```{r}
+# view cook_labels on the same scatter plot as in Step 23.
+ggplot(data = NULL, aes(x = points, y = cook)) +
+  geom_point() +
+  geom_text_repel(aes(label = cook_labels))
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_21.png", width = 4, height = 3)
+```
+
+We will remove these points from the data and re-run the regression model to see if it makes a difference to the slope or R-squared values.
+
+#### Step 25. Create a new fit model without the high influence points and re-run the multiple regression and summary
+
+```{r}
+# specify the outliers 
+outliers <- c(2, 7, 9, 21, 26, 28, 30)
+```
+
+```{r}
+# filter the joined data to eliminate the outliers
+joined_filtered <- joined %>%
+  filter(!cook_labels %in% outliers)
+```
+
+```{r}
+# run a new regression labeled `fit2`
+fit2 <- lm(win_percentage ~ TSp_norm + AST_per_game + ORB_per_game, data = joined_filtered)
+tidy(fit2, conf.int = TRUE)
+```
+
+
+```{r}
+# provide summary statistics for `fit2`
+summary(fit2)
+```
+
+```{r echo=FALSE}
+write.csv(x = joined_filtered, file = "data/processed/joined_filtered.csv")
+```
+
+
+We can see that our summary statistics are not affected drastically by removing the outliers, so we will continue to model our data including these points.
+
+Next we can check the model for homoscedasticity. Homoscedasticity is where the residuals of the model demonstrate a constant variance across all values of the X variable.    
+
+#### Step 26. Check the model for homoscedasticity using the `predict()` function and visualise these points
+
+```{r}
+# check for homoscedasticity
+res <- residuals(fit)
+fitted <- predict(fit)
+```
+
+```{r}
+# view potential homoscedasticity in a scatter plot
+ggplot(data = NULL, aes(x = fitted, y = res)) +
+  geom_point(colour = "dodgerblue") +
+  geom_hline(yintercept = 0, colour = "red", linetype = "dashed")
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_22.png", width = 4, height = 3)
+```
+
+There does not appear to be evidence of heteroscedasticity, as there is no evidence of a relationship between the data points. This outcome is in accordance with the assumptions of a multiple linear regression. 
+
+This model also needs to be tested for normal distribution among the residuals.
+
+#### Step 27. Check if the residuals of the model are normally distributed using a histogram plot and stat_qq plot 
+
+```{r}
+# using a histogram view the distribution of residuals 
+ggplot(data = NULL, aes(x = res)) +
+  geom_histogram(colour = "black", fill = "dodgerblue", binwidth = 6)
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_23.png", width = 4, height = 3)
+```
+
+```{r}
+# using a stat_qq plot view the distribution of the residuals
+ggplot(data = NULL, aes(sample = res)) +
+  stat_qq() + stat_qq_line()
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_24.png", width = 4, height = 3)
+```
+
+We can see some skewness in the model, likely from the points we have investigated to be of leverage and influence.  
+
+Next, we could investigate whether there is multicolinearity among our explanatory variables. 
+
+#### Step 28. Investigate the assumption of multicolinearity using `car::vif()` 
+
+```{r}
+# check for multicolinearity. Use install.packages("car") if not already installed then run the following code
+car::vif(fit)
+```
+
+When developing this plot, the closer each metric is to 1, the better. We can see that there may be some colinearity between TSp_norm and AST_per_game.  
+
+Finally, we can look at the linearity of the model using the `car` package. This plot accounts for the effect of other X variables on our model.    
+
+#### Step 29. Investigate the assumption of linearity
+
+```{r}
+# check for linearity
+car::avPlots(fit)
+```
+
+Some points are tending to create non-linear patterns in the data. These points seem to be similar to the points that we already investigated were potential points of high influence.
+
+**Interpretation:**
+Some of our assumptions may have been violated and this needs to be kept in mind for Part 2 of our analysis.
+For this data, we could investigate non-linear models that could be more robust to our specific data.
+Due to there being only one season of data, outliers play a large role in the skewness of the model. It would be beneficial to have data over multiple years as to get a more accurate depiction of specific game metrics and how players might be undervalued. 
+It is preferred not to remove data points from the data set as this can affect analysis and thus produce unclear outcomes.
+Overall, the data provided, although limited to one season, may have demonstrated the influence of TSp, AST and ORB on the offensive rating.
+Finally, it is important to keep in mind the limitations of our model and realize that further research is needed to conclude the investigation.  
+
+# Part 2.
+
+## Section 5. Player Recommendations
+
+To use the information in Part 1 to select the players, we will first look at the `p_stats` data set
+
+#### Step 1. Look at the `str()` `head()` and `tail()` of the players data
+
+```{r}
+# check the structure of p_stats
+str(p_stats)
+```
+
+```{r}
+# check the first 6 rows of p_stats
+head(p_stats)
+```
+
+```{r}
+# check the last 6 rows of p_stats
+tail(p_stats)
+```
+
+Check for any missing values in the `p_stats` data
+
+```{r}
+# check for missing values
+sum(is.na(p_stats))
+```
+
+Visualize the missing values using the `naniar` package. You will need to use `install.packages(naniar)` if you do not already have it installed, the run the following code.
+
+```{r}
+# visualize missing values.
+naniar::vis_miss(p_stats)
+```
+
+```{r echo=FALSE}
+ggsave("figs/fig_25.png", width = 4, height = 3)
+```
+
+We can see that although there are missing values within this data set, the variables that we will be using for our analysis have no missing data points and so will not affect us. The missing values are from the columns `FG%`, `3P%`, `2P%`, `eFG%` and `FT%`.   
+
+From our `tail()` function, we can see that there are duplicates of some players that were traded during the season. It is important to deal with these duplicates appropriately.
+
+First, we might want to normalize the metrics we are interested in based off minutes played. If a player has played more minutes than another player, it is unfair to compare them with each other. This will allow us to see players that have had the most impact during their time on the court. 
+
+#### Step 2. Normalize `PTS`, `FGA`, `FTA`, `AST` and `ORB` to a per-minute metric. 
+
+```{r}
+# create new variables of interest divided by the minutes played
+p_stats <- p_stats %>%
+  mutate(PTS_p_min = PTS / MP, 
+         FGA_p_min = FGA / MP,
+         FTA_p_min = FTA / MP,
+         AST_p_min = AST / MP,
+         ORB_p_min = ORB / MP)
+p_stats
+```
+
+Now we can deal with the duplicates and summarize the data by the specific variables we will be working with.
+
+We can see that there is no `TSp` variable in the `p_stats` data frame, so we will have to calculate this ourselves using `PTS`, `FGA` and `FTA`. The formula for $TSp = PTS / (2 * FGA + 0.44 * FTA)$^4^.
+
+#### Step 3. Deal with duplicates appropriately, summarise data to variables of interest, and create a new `TSp` variable
+
+```{r}
+p_summary <- p_stats %>%
+  group_by(player_name) %>%
+  summarise(total_starts = sum(GS),  # sum the total number of games started
+            last_Tm = last(Tm),  # only leave the team name that was the most recent team played for
+            last_Pos = last(Pos),  # only leave the position name that was the most recent position played in
+            sum_PTS_min = round(sum(PTS_p_min), digits = 2),  # sum PTS / min and round to 2 decimal places
+            sum_FGA_min = round(sum(FGA_p_min), digits = 2), 
+            sum_FTA_min = round(sum(FTA_p_min), digits = 2), 
+            sum_AST_min = round(sum(AST_p_min), digits = 2), 
+            sum_ORB_min = round(sum(ORB_p_min), digits = 2)) %>%
+  mutate(TSp = round(sum_PTS_min / (2 * sum_FGA_min + 0.44 * sum_FTA_min) * 100, digits = 1)) # create TSp col
+p_summary
+```
+
+To get each players statistics and salaries together, we will join the `salaries` data to the new `p_summary` data using the `left_join()` function
+
+#### Step 4. Join the salary data set to the new p_summary data set
+
+```{r}
+# join the data so we can see player statistics and salary together
+joined1 <- left_join(p_summary, salaries, by = "player_name") %>%
+  arrange(desc(salary))
+```
+
+#### Step 5. Check the `str` `head` and `tail` of our new data set `joined1`
+
+```{r}
+# check the structure of joined1
+str(joined1)
+```
+
+```{r}
+# check the first 6 rows of joined1
+head(joined1)
+```
+
+```{r}
+# check the last 6 rows of joined1
+tail(joined1)
+```
+
+From our `tail()` data, we can see that some players did not have any salary recorded. We might want to exclude these players from our data set because we will be selecting players based on how they fit into the Chicago Bulls budget. We can't select players if we don't know their salary.
+
+#### Step 6. Remove any rows containing NAs
+
+```{r}
+# remove any rows containing an NA from the data
+joined1 <- drop_na(joined1)
+```
+
+```{r echo=FALSE}
+write.csv(x = joined1, file = "data/processed/joined1.csv")
+```
+
+Now we have a complete data set we can start analyzing players based on their position.
+
+Lets first check the roster of the Chicago bulls for the main player in each position so we have something to compare to.
+
+#### Step 7. Create a tibble to view the current players in each position from the Chicago Bullls and their metrics 
+
+```{r}
+# `filter()` data for Chicago's starting players and `select()` variables of interest
+bulls <- joined1 %>%
+  filter(last_Tm == "CHO" & total_starts > 40) %>%
+  select(player_name, last_Pos, total_starts, sum_AST_min, sum_ORB_min, TSp, salary) %>%
+  arrange(desc(salary))  # arrange players from highest salary to lowest 
+```
+
+```{r, results='asis', echo=FALSE}
+bulls %>%
+  knitr::kable()
+```
+
+We may notice a few things from this output. First, the Chicago Bulls spent just under $71 million on their top starting players. This data also shows us that the Bulls spent the most money on their SF. We have already established that the SF should be the most versatile player on the team and that they score most of their points from the free throw line by drawing fouls. We can also see that the least amount of money was spent on a starting SG. We established that the shooting guard excels in shots from long-mid-range. 
+
+In terms of specific players, we can see that Cody Zeller, in the C position, far outweighs his team in offensive rebounds. We know that one of the most important roles for centers is rebounding. He also has the highest true shooting percentage for his team. We know that increased TSp relates to increased win percentage. For these reasons, we might say that Cody Zeller is worth keeping if we cant find a player with the same or better stats for less money in the C position.  
+
+Finally, we can see that Kemba Walker, in the PG position, far outweighs his team in assists. We know that one of the most important roles for point guards is assists. However, from our analysis, we also know that the Chicago Bulls compare poorly to other teams in assists. For this reason, we might say that we want to try and find a replacement for Kemba Walker for a player that has a higher assist rating. 
+
+From the above information, combined with the information we uncovered in Part 1 of the analysis, we can come up with a few strategies to re-structure the team, within the budget, to try and enhance the Chicago Bulls offensive rating.
+
+Lets look at stats for each position individually, where the player has started > 40 games. We will use 40 as the minimum as this will give us an idea of key starting players. 
+
+#### Step 8. Using the `joined1` data , create 5 new tables that show players grouped by each position with a minimum of 40 games started.
+
+### PG
+
+```{r}
+# filter the PG position and arrange by AST
+PG_stats <- joined1 %>%
+  filter(last_Pos == "PG" & total_starts > 40) %>%
+  select(player_name, last_Pos, total_starts, sum_AST_min, sum_ORB_min, TSp, salary) %>%
+  arrange(desc(sum_AST_min)) %>%
+  head(n = 15)
+```
+
+```{r, results='asis', echo=FALSE}
+PG_stats %>%
+  knitr::kable()
+```
+
+We have already stated that PG players typically lead their team in assists and also creating opportunities for shot attempts, therefore, this player should be of particular interest to the Chicago Bulls coaching staff, due to low assists and three-point attempts during the 2018-19 season. Ben Simmons is a stand out in particular (row 11). Ben has a salary nearly half of the current PG for Chicago. He has greater assists per minute played, offensive rebounds per minute played, and true shooting percentage. 
+
+Here is a table just for reference comparing the current PG versus the recommended PG for Chicago Bulls.
+
+```{r echo=FALSE}
+PG <- joined1 %>%
+  filter(player_name == "Kemba Walker" | player_name == "Ben Simmons") %>%
+  select(player_name, last_Tm, last_Pos, total_starts, sum_AST_min, sum_ORB_min, TSp, salary) %>%
+  arrange(desc(salary))
+```
+
+```{r, results='asis', echo=FALSE}
+PG %>%
+  knitr::kable()
+```
+
+### SG
+
+```{r}
+# filter the SG position and arrange by TSp
+SG_stats <- joined1 %>%
+  filter(last_Pos == "SG" & total_starts > 40) %>%
+  select(player_name, last_Pos, total_starts, sum_AST_min, sum_ORB_min, TSp, salary) %>%
+  arrange(desc(TSp)) %>%
+  head(n = 5)
+```
+
+```{r, results='asis', echo=FALSE}
+SG_stats %>%
+  knitr::kable()
+```
+
+We have already stated that SG players excel in long-mid-range shots, therefore, this player should be of particular interest to the Chicago Bulls coaching staff, due to low three-points made and three-point attempts during the 2018-19 season. Joe Harris is a stand out in particular (row 1). Joe has a salary slightly above the current SG for Chicago. He has similar stats for assists and offensive rebounds but a much higher true shooting percentage. Although having slightly lower ORB/min than the current SG, TSp is so much higher that we placed greater emphasis on this metric for this position.  
+
+Here is a table just for reference comparing the current SG versus the recommended SG for Chicago Bulls.
+
+```{r echo=FALSE}
+SG <- joined1 %>%
+  filter(player_name == "Jeremy Lamb" | player_name == "Joe Harris") %>%
+  select(player_name, last_Tm, last_Pos, total_starts, sum_AST_min, sum_ORB_min, TSp, salary) %>%
+  arrange(desc(sum_ORB_min))
+```
+
+```{r, results='asis', echo=FALSE}
+SG %>%
+  knitr::kable()
+```
+
+### SF
+
+```{r}
+# filter the SF position and arrange by TSp
+SF_stats <- joined1 %>%
+  filter(last_Pos == "SF" & total_starts > 40) %>%
+  select(player_name, last_Pos, total_starts, sum_AST_min, sum_ORB_min, TSp, salary) %>%
+  arrange(desc(TSp)) %>%
+  head(n = 10)
+```
+
+```{r, results='asis', echo=FALSE}
+SF_stats %>%
+  knitr::kable()
+```
+
+We have already stated that SF players are the most versatile on the team, therefore it would make sense to choose a player that performs well across each metric of interest. Robert Covington is a stand out in particular (row 7). Robert has a salary less than half the current SF for Chicago, but has much higher offensive rebounds per minute, greater TSp and greater assists per minute.  
+
+Here is a table just for reference comparing the current SF versus the recommended SF for Chicago Bulls.
+
+```{r echo=FALSE}
+SF <- joined1 %>%
+  filter(player_name == "Nicolas Batum" | player_name == "Robert Covington") %>%
+  select(player_name, last_Tm, last_Pos, total_starts, sum_AST_min, sum_ORB_min, TSp, salary) %>%
+  arrange(desc(salary))
+```
+
+```{r, results='asis', echo=FALSE}
+SF %>%
+  knitr::kable()
+```
+
+### PF
+
+```{r}
+# filter the PF position arranged by TSp
+PF_stats <- joined1 %>%
+  filter(last_Pos == "PF" & total_starts > 40) %>%
+  select(player_name, last_Pos, total_starts, sum_AST_min, sum_ORB_min, TSp, salary) %>%
+  arrange(desc(TSp)) %>%
+  head(n = 6)
+```
+
+```{r, results='asis', echo=FALSE}
+PF_stats %>%
+  knitr::kable()
+```
+
+We have already stated that PF players are the most dependent scorers. Therefore we will base our choice here off the TSp metric we calculated. The current PF for Chicago has one of the lowest TSp in the league (for this position) and thus does not provide value where needed. John Collins is a stand out in particular (row 2). John has a salary far below the current PF for Chicago, but has much higher statistics all round.  
+
+Here is a table just for reference comparing the current PF versus the recommended PF for Chicago Bulls.
+
+```{r echo=FALSE}
+PF <- joined1 %>%
+  filter(player_name == "Marvin Williams" | player_name == "John Collins") %>%
+  select(player_name, last_Tm, last_Pos, total_starts, sum_AST_min, sum_ORB_min, TSp, salary) %>%
+  arrange(desc(salary))
+```
+
+```{r, results='asis', echo=FALSE}
+PF %>%
+  knitr::kable()
+```
+
+### C
+
+```{r}
+# filter the C position and arrange by ORB
+C_stats <- joined1 %>%
+  filter(last_Pos == "C" & total_starts > 40) %>%
+  select(player_name, last_Pos, total_starts, sum_AST_min, sum_ORB_min, TSp, salary) %>%
+  arrange(desc(sum_ORB_min)) %>%
+  head(n = 16)
+```
+
+```{r, results='asis', echo=FALSE}
+C_stats %>%
+  knitr::kable()
+```
+
+Finally, we have already stated that C players are possibly the most important players on the court. We also mentioned that our current C excels in rebounds and TSp. Therefore the conclusion was drawn that if there were no players with greater stats for less money it would be beneficial to keep the current C. Karl-Anthony Towns (row 16) has slightly better stats than the current C, but also a much lower salary. If worried about staying under budget, Karl-Anthony Towns may be the best option here.    
+
+Here is a table just for reference comparing the current C versus the recommended C for Chicago Bulls.
+
+```{r echo=FALSE}
+C <- joined1 %>%
+  filter(player_name == "Cody Zeller" | player_name == "Karl-Anthony Towns") %>%
+  select(player_name, last_Tm, last_Pos, total_starts, sum_AST_min, sum_ORB_min, TSp, salary) %>%
+  arrange(desc(salary))
+```
+
+```{r, results='asis', echo=FALSE}
+C %>%
+  knitr::kable()
+```
+
+
+Overall, our player recommendations provide high experienced players, with possibly undervalued salaries according to our analysis. With the players we selected, our total spending comes to just over $35 million (around half the amount spent on the starting players for the 2018-19 season).
+
+A limitation from our recommendations is that our data does not include a time analysis of the game, and therefore we cannot decide whether certain players have more impact during high pressure situations such as in the final quarter of an important match. Also, our analysis does not include any metrics related to the defense of the team and so this is something to be looked into as an important factor of winning. Finally, our analysis cannot account for player influence or impact on the team. For example, John Collins' offensive stats may surpass the current PF, but what is his impact on the team as a whole? What is his attitude like in training and games and can he elevate team moral? These questions are ultimately for the coaches to answer. The recommendations provided here are purely based off the statistics in front of us and do not give an overall picture into the player, but provide a great starting point and direction for possible undervalued players.     
+
+## 5. Final Recommendation
+
+```{r echo=FALSE}
+recommendation <- joined1 %>%
+  filter(player_name == "Ben Simmons" | player_name == "Joe Harris" | 
+        player_name == "Robert Covington" | player_name == "John Collins" | 
+        player_name == "Karl-Anthony Towns") %>%
+  select(player_name, last_Tm, last_Pos, total_starts, sum_AST_min, sum_ORB_min, TSp, salary)
+```
+
+```{r, results='asis', echo=FALSE}
+recommendation %>%
+  knitr::kable()
+```
+
+## 6. Summary
+
+Does our analysis answer the outlined aim of the project? 
+
+"The first part of our analysis will aim to discover whether assists and offensive rebounds play a large role in offensive rating, and the second will aim to see if any players were undervalued based on what our first analysis predicts."
+
+First of all, from our analysis we could say that true shooting percentage plays a large role in our offensive rating. Further we could also say that assists and offensive rebounds play a secondary role to our offensive rating due to influencing true shooting percentage. We have investigated that higher assists potentially contribute to higher successful three-points or three-point attempts. And from our multiple regression, for every 1 unit increase in offensive rebounds, win percentage is increased by 4.4%. However it is important to note that our model does have limitations as outlined previously. 
+
+Secondly, we came up with 5 player recommendations based on our analysis in Part 1. These players were primarily picked to increase the offensive rating of the Chicago Bulls team and more analysis would be necessary to deem if these players were also effective defensive players.
+
+**Conclusions from our analysis:**
+It is important to realize that there are other factors that contribute to winning. 
+Specifically for the Chicago Bulls, putting more emphasis on players with a higher true shooting percentage, assists and offensive rebounds seems that it would be beneficial to their offensive rating, and thus overall net rating.
+Based on these outcomes 5 players were recommended.
+We should get more data though to be more confident in our analysis. 
+Many other variables contribute to winning which cannot be measured through data such as a player's influence on their team.
+
+## Reference List
+
+1. https://official.nba.com/rule-no-1-court-dimensions-equipment/
+
+2. https://www.researchgate.net/publication/350435579_Alley-oop_Basketball_analytics_in_R
+
+3. https://www.horacegrant.com/blog/how-the-game-has-changed/
+
+4. https://www.basketball-reference.com/about/glossary.html
+
